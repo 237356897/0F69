@@ -266,6 +266,7 @@ namespace Desay
                                     {
                                         //停止蜂鸣
                                         Light.SpeakImmediately = false;
+                                        m_Alarm = BackflowAlarm.无消息;
                                         //IoPoints.I2DO02.Value = true;
                                         //IoPoints.I2DO03.Value = false;
                                         if (IoPoints.I2DI25.Value)
@@ -277,6 +278,7 @@ namespace Desay
                                     {
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
+                                        m_Alarm = BackflowAlarm.输送线上盘;
                                         //IoPoints.I2DO02.Value = false;
                                         //IoPoints.I2DO03.Value = true;
                                     }
@@ -311,6 +313,7 @@ namespace Desay
                                     {
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
+                                        m_Alarm = BackflowAlarm.输送线下盘;
                                         //IoPoints.I2DO02.Value = false;
                                         //IoPoints.I2DO03.Value = true; 
                                     }
@@ -318,6 +321,7 @@ namespace Desay
                                     {
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
+                                        m_Alarm = BackflowAlarm.输送线下盘;
                                         //IoPoints.I2DO02.Value = false;
                                         //IoPoints.I2DO03.Value = true; 
                                     }
@@ -325,6 +329,7 @@ namespace Desay
                                     {
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
+                                        m_Alarm = BackflowAlarm.输送线上盘;
                                         //IoPoints.I2DO02.Value = false;
                                         //IoPoints.I2DO03.Value = true; 
                                     }
@@ -332,6 +337,7 @@ namespace Desay
                                     {
                                         //停止蜂鸣
                                         Light.SpeakImmediately = false;
+                                        m_Alarm = BackflowAlarm.无消息;
                                         //IoPoints.I2DO02.Value = true;
                                         //IoPoints.I2DO03.Value = false; 
                                     }
@@ -552,6 +558,16 @@ namespace Desay
                 AlarmLevel = AlarmLevels.Error,
                 Name = BackflowAlarm.输送轴复位超时.ToString()
             });
+            list.Add(new Alarm(() => m_Alarm == BackflowAlarm.输送线下盘)
+            {
+                AlarmLevel = AlarmLevels.Warrning,
+                Name = "输送线下料，请取走料盘！"
+            });
+            list.Add(new Alarm(() => m_Alarm == BackflowAlarm.输送线上盘)
+            {
+                AlarmLevel = AlarmLevels.Warrning,
+                Name = "输送线上料，请放置空盘！"
+            });
             return list;
         }
 
@@ -574,7 +590,9 @@ namespace Desay
             初始化故障,
             料盘扫码NG,
             料盘位置异常,
-            输送轴复位超时
+            输送轴复位超时,
+            输送线下盘,
+            输送线上盘
         }
     }
 
