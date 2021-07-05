@@ -626,7 +626,7 @@ namespace Desay
             list.Add(new Alarm(() => !IoPoints.I2DI07.Value && !m_Backflow.CarryAxis.IsInPosition(RunPara.Instance.CarryAxisMovePos))
             {
                 AlarmLevel = AlarmLevels.Warrning,
-                Name = "光栅感应"
+                Name = "安全光栅已感应，注意安全！"
             });
             list.Add(new Alarm(() => !IoPoints.I2DI04.Value && !RunPara.Instance.ShieldEntraceGuard)
             {

@@ -119,6 +119,10 @@ namespace Desay
         /// 料盘扫描时间
         /// </summary>
         Stopwatch TrayCodeTime = new Stopwatch();
+        /// <summary>
+        /// 等待料盘启动时间
+        /// </summary>
+        Stopwatch WaitBackTime = new Stopwatch();
         public void cool()
         {
             IoPoints.I2DO18.Value = true; //等离子风扇开
@@ -134,6 +138,10 @@ namespace Desay
         /// 料盘已取走过
         /// </summary>
         bool ifgetout = false;
+        /// <summary>
+        /// 料盘已准备号
+        /// </summary>
+        bool CarryAxisReady = false;
         /// <summary>
         /// 光栅感应轴停止
         /// </summary>
@@ -211,6 +219,7 @@ namespace Desay
                                     Thread.Sleep(100);
                                 }
                                 ifgetout = false;
+                                CarryAxisReady = false;
                                 Marking.preRobotStatus = Output.s20;
                                 coutnumb1 = 0;
                                 break;
@@ -264,14 +273,27 @@ namespace Desay
                                 {
                                     if (IoPoints.I2DI20.Value) //输送线放好盘，停止报警
                                     {
-                                        //停止蜂鸣
-                                        Light.SpeakImmediately = false;
-                                        m_Alarm = BackflowAlarm.无消息;
-                                        //IoPoints.I2DO02.Value = true;
-                                        //IoPoints.I2DO03.Value = false;
                                         if (IoPoints.I2DI25.Value)
                                         {
+                                            //停止蜂鸣
+                                            Light.SpeakImmediately = false;
+                                            m_Alarm = BackflowAlarm.无消息;
                                             Marking.RobotStatus = Output.s60;
+                                        }
+                                        else
+                                        {
+                                            if (WaitBackTime.ElapsedMilliseconds / 1000 > 15)
+                                            {
+                                                //蜂鸣
+                                                Light.SpeakImmediately = true;
+                                                m_Alarm = BackflowAlarm.料盘下料超时;
+                                            }
+                                            else
+                                            {
+                                                //停止蜂鸣
+                                                Light.SpeakImmediately = false;
+                                                m_Alarm = BackflowAlarm.无消息;
+                                            }
                                         }
                                     }
                                     else                       //输送线无盘 开始报警
@@ -279,8 +301,7 @@ namespace Desay
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
                                         m_Alarm = BackflowAlarm.输送线上盘;
-                                        //IoPoints.I2DO02.Value = false;
-                                        //IoPoints.I2DO03.Value = true;
+                                        WaitBackTime.Restart();
                                     }
                                 }
                                 Marking.preRobotStatus = Output.s70;
@@ -313,37 +334,52 @@ namespace Desay
                                     {
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
+                                        CarryAxisReady = false;
                                         m_Alarm = BackflowAlarm.输送线下盘;
-                                        //IoPoints.I2DO02.Value = false;
-                                        //IoPoints.I2DO03.Value = true; 
                                     }
                                     else if (IoPoints.I2DI20.Value && IsFullTray)    //有盘且满料盘
                                     {
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
+                                        CarryAxisReady = false;
                                         m_Alarm = BackflowAlarm.输送线下盘;
-                                        //IoPoints.I2DO02.Value = false;
-                                        //IoPoints.I2DO03.Value = true; 
                                     }
                                     else if (!IoPoints.I2DI20.Value && !IsFullTray && !RunPara.Instance.TraySolidify)  //无盘且不满料盘
                                     {
                                         //蜂鸣
                                         Light.SpeakImmediately = true;
+                                        CarryAxisReady = false;
                                         m_Alarm = BackflowAlarm.输送线上盘;
-                                        //IoPoints.I2DO02.Value = false;
-                                        //IoPoints.I2DO03.Value = true; 
                                     }
-                                    else
+                                    else  //有盘且不满盘  无盘且满盘  
+                                    {
+                                        if (!CarryAxisReady)
+                                        {
+                                            CarryAxisReady = true;
+                                            WaitBackTime.Restart();
+                                        }                                        
+                                    }
+
+                                    if ((IoPoints.I2DI25.Value && ifgetout && CarryAxisReady) || (RunPara.Instance.cbAuto && !IsFullTray))
                                     {
                                         //停止蜂鸣
                                         Light.SpeakImmediately = false;
                                         m_Alarm = BackflowAlarm.无消息;
-                                        //IoPoints.I2DO02.Value = true;
-                                        //IoPoints.I2DO03.Value = false; 
-                                    }
-                                    if ((IoPoints.I2DI25.Value && ifgetout && !Light.SpeakImmediately) || (RunPara.Instance.cbAuto && !IsFullTray))
-                                    {
                                         Marking.RobotStatus = Output.s60;
+                                    }
+                                    else if (ifgetout && CarryAxisReady)
+                                    {
+                                        if (WaitBackTime.ElapsedMilliseconds / 1000 > 15)
+                                        {
+                                            Light.SpeakImmediately = true;
+                                            m_Alarm = BackflowAlarm.料盘下料超时;
+                                        }
+                                        else
+                                        {
+                                            //停止蜂鸣
+                                            Light.SpeakImmediately = false;
+                                            m_Alarm = BackflowAlarm.无消息;
+                                        }
                                     }
                                 }
                                 else if (CarryAxis.IsInPosition(RunPara.Instance.CarryAxisOrgPos) && IoPoints.I2DI19.Value)
@@ -568,6 +604,11 @@ namespace Desay
                 AlarmLevel = AlarmLevels.Warrning,
                 Name = "输送线上料，请放置空盘！"
             });
+            list.Add(new Alarm(() => m_Alarm == BackflowAlarm.料盘下料超时)
+            {
+                AlarmLevel = AlarmLevels.Warrning,
+                Name = "输送线下料位等待超时！"
+            });
             return list;
         }
 
@@ -592,7 +633,8 @@ namespace Desay
             料盘位置异常,
             输送轴复位超时,
             输送线下盘,
-            输送线上盘
+            输送线上盘,
+            料盘下料超时,
         }
     }
 
